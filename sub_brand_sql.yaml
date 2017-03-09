@@ -1,0 +1,76 @@
+#
+brand_submarket_data: "
+insert into %s
+select pcid,cast(cid as numeric)as cid,cidname,brand,'%s' as submarket,'%s' as sm_id,datamonth,sum(biz30day) as biz30day,sum(total_sold_price) as total_sold_price
+from %s where datamonth  = '201701' and title like '%%%s%%'
+group by pcid,cid,cidname,brand,submarket,sm_id,datamonth;
+"
+#
+cat_submarket_data: "
+insert into %s
+select pcid,cast(cid as numeric)as cid,cidname,'%s' as brand,'%s' as submarket,'%s' as sm_id,datamonth,sum(biz30day) as biz30day,sum(total_sold_price) as total_sold_price
+from %s where title like '%%%s%%' and datamonth = '201701'
+group by pcid,cid,cidname,datamonth;
+"
+#
+brand_price_duan_data: "
+insert into %s
+select pcid,cast(cid as numeric)as cid,cidname,brand,'%s' as submarket,'%s' as sm_id,datamonth,sum(biz30day) as biz30day,sum(total_sold_price) as total_sold_price
+from %s where datamonth = '201701' %s group by pcid,cid,cidname,brand,datamonth;
+"
+#
+cat_price_duan_data: "
+insert into %s
+select pcid,cast(cid as numeric)as cid,cidname,'%s' as brand,'%s' as submarket,'%s' as sm_id,datamonth,sum(biz30day) as biz30day,sum(total_sold_price) as total_sold_price
+from %s where datamonth = '201701' %s group by pcid,cid,cidname,datamonth;"
+#
+up_brand_data: "
+update brand_analysis.brand_submarkert_pcid%s as a set all_%s = t.%s
+from brand_analysis.brand_sales_pcid%s as t
+where a.cid = t.cid and a.brand = t.brand and a.datamonth = t.datamonth
+and a.brand not in (select distinct c2id from charts.mj_cid_tree where pcid = '%s') and a.brand = '%s';"
+#
+up_cat_data: "
+update brand_analysis.brand_submarkert_pcid%s as a set all_%s = t.%s
+from brand_analysis.category_sales_pcid%s as t
+where a.cid = t.cid and a.datamonth = t.datamonth
+and a.brand in (select distinct c2id from charts.mj_cid_tree where pcid = '%s') and a.brand = '%s';"
+#
+calculate_data: "
+update brand_analysis.brand_submarkert_pcid%s as a set biz30day_occupancy =  round((case when all_biz30day = 0 then null
+else biz30day/all_biz30day end)*100,2) where cid = '%s';
+update brand_analysis.brand_submarkert_pcid%s as a set total_sold_price_occupancy = round((case when all_total_sold_price = 0 then null
+else total_sold_price/all_total_sold_price end)*100,2) where cid = '%s';"
+#
+top_brand_occupancy: "
+select cast(m.cid as integer),m.cidname,m.submarket,m.sm_id,m.datamonth,m.top_brand_biz30day_occupancy,n.top_brand_total_sold_price_occupancy from
+(select a.pcid,a.cid,a.cidname,a.submarket,a.sm_id,a.datamonth,round((case when b.all_biz30day = 0 then null else sum(a.biz30day)/b.all_biz30day end)*100,2) as top_brand_biz30day_occupancy
+from %s a left join (select cid,datamonth,biz30day as all_biz30day from %s where brand = '%s' and sm_id = '%s') b
+on a.cid = b.cid and a.datamonth = b.datamonth where a.cid = '%s' and a.sm_id = '%s' and a.datamonth = '%s'
+and a.brand in (select brand from %s where cid ='%s' and sm_id = '%s' and datamonth = '%s' and brand not in(%s,'%s') and brand is not null order by biz30day desc limit 10)
+group by a.pcid,a.cid,a.cidname,a.submarket,a.sm_id,a.datamonth,b.all_biz30day) m
+left join
+(select c.pcid,c.cid,c.cidname,c.submarket,c.sm_id,c.datamonth,round((case when d.all_total_sold_price = 0 then null else sum(c.total_sold_price)/d.all_total_sold_price end)*100,2) as top_brand_total_sold_price_occupancy
+from %s c left join (select cid,datamonth,total_sold_price as all_total_sold_price from %s
+where brand = '%s' and sm_id = '%s') d
+on c.cid = d.cid and c.datamonth = d.datamonth where c.cid = '%s' and c.sm_id = '%s' and c.datamonth = '%s'
+and c.brand in (select brand from %s where cid ='%s' and sm_id = '%s' and datamonth = '%s' and brand not in(%s,'%s') and brand is not null order by total_sold_price desc limit 10)
+group by  c.pcid,c.cid,c.cidname,c.submarket,c.sm_id,c.datamonth,d.all_total_sold_price) n
+on m.pcid = n.pcid and m.cid = n.cid and m.sm_id = n.sm_id and m.datamonth = n.datamonth;
+"
+top_brand_occupancy_bak: "
+select cast(m.pcid as integer),cast(m.cid as integer),m.cidname,m.submarket,m.sm_id,m.datamonth,m.top_brand_biz30day_occupancy,n.top_brand_total_sold_price_occupancy from
+(select a.pcid,a.cid,a.cidname,a.submarket,a.sm_id,a.datamonth,round((case when b.all_biz30day = 0 then null else sum(a.biz30day)/b.all_biz30day end)*100,2) as top_brand_biz30day_occupancy
+from %s a left join (select cid,datamonth,biz30day as all_biz30day from %s where brand = '%s' and sm_id = '%s') b
+on a.cid = b.cid and a.datamonth = b.datamonth where a.cid = '%s' and a.sm_id = '%s' and a.datamonth = '%s'
+and a.brand in (select brand from %s where cid ='%s' and sm_id = '%s' and datamonth = '%s' and brand not in(%s,'%s') and brand is not null order by biz30day desc limit 10)
+group by a.pcid,a.cid,a.cidname,a.submarket,a.sm_id,a.datamonth,b.all_biz30day) m
+left join
+(select c.pcid,c.cid,c.cidname,c.submarket,c.sm_id,c.datamonth,round((case when d.all_total_sold_price = 0 then null else sum(c.total_sold_price)/d.all_total_sold_price end)*100,2) as top_brand_total_sold_price_occupancy
+from %s c left join (select cid,datamonth,total_sold_price as all_total_sold_price from %s
+where brand = '%s' and sm_id = '%s') d
+on c.cid = d.cid and c.datamonth = d.datamonth where c.cid = '%s' and c.sm_id = '%s' and c.datamonth = '%s'
+and c.brand in (select brand from %s where cid ='%s' and sm_id = '%s' and datamonth = '%s' and brand not in(%s,'%s') and brand is not null order by total_sold_price desc limit 10)
+group by  c.pcid,c.cid,c.cidname,c.submarket,c.sm_id,c.datamonth,d.all_total_sold_price) n
+on m.pcid = n.pcid and m.cid = n.cid and m.sm_id = n.sm_id and m.datamonth = n.datamonth;
+"
